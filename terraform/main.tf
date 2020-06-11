@@ -41,6 +41,7 @@ resource "aws_secretsmanager_secret" "bigip" {
     Name        = format("%s-bigip-secret-%s", local.setup.owner, random_id.id.hex)
     Terraform   = "true"
     Environment = local.setup.aws.environment
+    Owner       = local.setup.owner
   }
 }
 resource "aws_secretsmanager_secret_version" "bigip-pwd" {
@@ -70,116 +71,41 @@ module "vpc" {
     Name        = format("%s-vpc-%s", local.setup.owner, random_id.id.hex)
     Terraform   = "true"
     Environment = local.setup.aws.environment
+    Owner       = local.setup.owner
   }
 
   public_subnet_tags = {
     Name        = format("%s-pub-subnet-%s", local.setup.owner, random_id.id.hex)
     Terraform   = "true"
     Environment = local.setup.aws.environment
+    Owner       = local.setup.owner
   }
 
   public_route_table_tags = {
     Name        = format("%s-pub-rt-%s", local.setup.owner, random_id.id.hex)
     Terraform   = "true"
     Environment = local.setup.aws.environment
+    Owner       = local.setup.owner
   }
 
   igw_tags = {
     Name        = format("%s-igw-%s", local.setup.owner, random_id.id.hex)
     Terraform   = "true"
     Environment = local.setup.aws.environment
+    Owner       = local.setup.owner
   }
 }
 
 #
-# Create a security group for port 80 traffic
+# Create necessary security groups
 #
-module "web_server_sg" {
-  source = "terraform-aws-modules/security-group/aws//modules/http-80"
+module security {
+  source = "./modules/security"
 
-  name        = format("%s-webserver-sg-%s", local.setup.owner, random_id.id.hex)
-  description = "Security group for web-server with HTTP ports"
+  owner       = local.setup.owner
+  environment = local.setup.aws.environment
+  random_id   = random_id.id.hex
   vpc_id      = module.vpc.vpc_id
-
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-
-  tags = {
-    Terraform   = "true"
-    Environment = local.setup.aws.environment
-  }
-}
-
-#
-# Create a security group for port 443 traffic
-#
-module "web_server_secure_sg" {
-  source = "terraform-aws-modules/security-group/aws//modules/https-443"
-
-  name        = format("%s-webserver-secure-sg-%s", local.setup.owner, random_id.id.hex)
-  description = "Security group for web-server with HTTPS ports"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-
-  tags = {
-    Terraform   = "true"
-    Environment = local.setup.aws.environment
-  }
-}
-
-#
-# Create a security group for port 8443 traffic
-#
-module "bigip_mgmt_secure_sg" {
-  source = "terraform-aws-modules/security-group/aws//modules/https-8443"
-
-  name        = format("%s-bigip-mgmt-sg-%s", local.setup.owner, random_id.id.hex)
-  description = "Security group for BIG-IP MGMT Interface"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-
-  tags = {
-    Name        = format("%s-mgmt-secure-sg-%s", local.setup.owner, random_id.id.hex)
-    Terraform   = "true"
-    Environment = local.setup.aws.environment
-  }
-}
-
-#
-# Create a security group for SSH traffic
-#
-module "ssh_secure_sg" {
-  source = "terraform-aws-modules/security-group/aws//modules/ssh"
-
-  name        = format("%s-ssh-sg-%s", local.setup.owner, random_id.id.hex)
-  description = "Security group for SSH ports open within VPC"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-
-  tags = {
-    Terraform   = "true"
-    Environment = local.setup.aws.environment
-  }
-}
-
-#
-# Create a security group for http-3000 grafana traffic
-#
-module "grafana_sg" {
-  source = "github.com/AllBitsBVBA/terraform-aws-security-group//modules/grafana?ref=v3.4.0.2"
-
-  name        = format("%s-grafana-sg-%s", local.setup.owner, random_id.id.hex)
-  description = "Security group for HTTP port 3000 (Grafana Dashboard)"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-
-  tags = {
-    Terraform   = "true"
-    Environment = local.setup.aws.environment
-  }
 }
 
 #
@@ -197,10 +123,10 @@ module bigip {
   aws_secretmanager_secret_id = aws_secretsmanager_secret.bigip.id
 
   mgmt_subnet_security_group_ids = [
-    module.web_server_sg.this_security_group_id,
-    module.web_server_secure_sg.this_security_group_id,
-    module.ssh_secure_sg.this_security_group_id,
-    module.bigip_mgmt_secure_sg.this_security_group_id
+    module.security.web_server_sg,
+    module.security.web_server_secure_sg,
+    module.security.ssh_secure_sg,
+    module.security.bigip_mgmt_secure_sg
   ]
 
   vpc_mgmt_subnet_ids = module.vpc.public_subnets
@@ -223,8 +149,8 @@ module webserver {
   server_count = 2
 
   sec_group_ids = [
-    module.web_server_sg.this_security_group_id,
-    module.web_server_secure_sg.this_security_group_id
+    module.security.web_server_sg,
+    module.security.web_server_secure_sg
   ]
 
   tenant              = local.setup.atc.tenant
@@ -246,8 +172,28 @@ module graphite_grafana {
   ec2_key_name = local.setup.aws.ec2_key_name
 
   sec_group_ids = [
-    module.web_server_sg.this_security_group_id,
-    module.grafana_sg.this_security_group_id
+    module.security.web_server_sg,
+    module.security.grafana_sg,
+    module.security.graphite_statsd_sg
+  ]
+}
+
+#
+# Create ELK Instance
+#
+module elk {
+  source = "./modules/elk"
+
+  owner        = local.setup.owner
+  environment  = local.setup.aws.environment
+  random_id    = random_id.id.hex
+  subnet_id    = element(module.vpc.public_subnets, 0)
+  ec2_key_name = local.setup.aws.ec2_key_name
+
+  sec_group_ids = [
+    module.security.web_server_sg,
+    module.security.elasticsearch_sg,
+    module.security.kibana_sg
   ]
 }
 
