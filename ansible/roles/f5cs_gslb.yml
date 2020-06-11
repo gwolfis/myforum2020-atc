@@ -1,0 +1,94 @@
+---
+- name: Application Services (AS3) playbook
+  hosts: localhost 
+  connection: local
+  #vars_files: "../../setup.yml"  
+
+  vars:
+    api_url: 'api.cloudservices.f5.com'
+    api_version: v1
+    password: 'F5twister3881!'
+    username: 'g.wolfis@f5.com'
+    zone_name: 'newapp.f5demo.eu'
+    service_instance_name: 'NEW APP'
+    ipEndpoint_1: 'equinix_dc_newapp_vs'
+    ipEndpoint_2: 'aws_eu_newapp_vs'
+    address_ipEndpoint_1: '88.84.155.37'
+    address_ipEndpoint_2: '40.127.150.7'
+
+  tasks:
+    - name: login to cloud services
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-auth/login
+        body: {"username":"{{ username }}","password":"{{ password }}"}
+        method: POST
+        body_format: json
+      delegate_to: localhost
+      register: cloud_access_token
+    #- debug: var=cloud_access_token.json.access_token
+
+    - name: get account details
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-account/user
+        headers: 
+          Authorization: 'Bearer {{ cloud_access_token.json.access_token }}'
+        method: GET
+        body_format: json
+      delegate_to: localhost
+      register: user_info
+    - debug: var=user_info.json.primary_account_id
+
+    - name: get subscriptions
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-subscription/subscriptions?account_id={{ user_info.json.primary_account_id }}
+        headers: 
+          Authorization: 'Bearer {{ cloud_access_token.json.access_token }}'
+        method: GET
+        body_format: json
+      delegate_to: localhost
+      register: subscription_info
+    #- debug: var=subscription_info
+
+
+    - name: get catalogue items
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-catalog/catalogs
+        headers: 
+          Authorization: 'Bearer {{ cloud_access_token.json.access_token }}'
+        method: GET
+        body_format: json
+      delegate_to: localhost
+      register: catalogue_info
+    - debug: var=catalogue_info.json.Catalogs
+ 
+
+    - name: Get catalog ID for DNS service
+      set_fact:
+        catalog_id: "{{ item.catalog_id }}"
+      with_items:
+        "{{ catalogue_info.json.Catalogs | json_query(query) }}"
+      vars: 
+        query: "[].{name: name, catalog_id: catalog_id} | [?name=='DNS Load Balancer']"
+    #- debug: var=catalog_id
+
+    - name: send create request
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-subscription/subscriptions
+        headers:
+          Authorization: 'Bearer {{ cloud_access_token.json.access_token }}'
+        method: PUT
+        body_format: json
+        body: "{{ lookup('template','f5cs_gslb.json') }}"
+      delegate_to: localhost
+      register: create_output
+    #- debug: var=create_output.json.subscription_id
+
+    - name: Activate new zone
+      uri:
+        url: https://{{ api_url }}/{{ api_version }}/svc-subscription/subscriptions/{{ create_output.json.subscription_id }}/activate
+        headers: 
+          Authorization: 'Bearer {{ cloud_access_token.json.access_token }}'
+        method: POST
+      delegate_to: localhost
+      register: activate_output
+    #- debug: var=activate_output

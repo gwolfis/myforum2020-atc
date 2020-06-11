@@ -1,0 +1,139 @@
+{
+    "account_id": "{{ user_info.json.primary_account_id }}",
+    "catalog_id": "{{ catalog_id }}",
+    "status": "DISABLED",
+    "service_instance_name": "{{ f5cs.service_instance_name }}",
+    "deleted": false,
+    "service_type": "gslb",
+    "configuration": {
+        "gslb_service": {
+            "load_balanced_records": {
+                "lbr1": {
+                    "aliases": [
+                        "www",
+                        "app"
+                    ],
+                    "display_name": "{{ f5cs.service_instance_name }}",
+                    "enable": true,
+                    "persist_cidr_ipv4": 24,
+                    "persist_cidr_ipv6": 56,
+                    "persistence": false,
+                    "persistence_ttl": 3600,
+                    "proximity_rules": [
+                        {
+                            "pool": "pools_EU_Pool",
+                            "region": "regions_EU",
+                            "score": 80
+                        }
+                    ],
+                    "rr_type": "A"
+                }
+            },
+            "monitors": {
+                "monitors_Web_Site_Monitor": {
+                    "display_name": "tcp 443 monitor",
+                    "monitor_type": "tcp_standard",
+                    "target_port": 443
+                }
+            },
+            "pools": {
+                "pools_EU_Pool": {
+                    "display_name": "EU Pool",
+                    "enable": true,
+                    "load_balancing_mode": "round-robin",
+                    "max_answers": 1,
+                    "members": [
+                        {
+                            "monitor": "monitors_Web_Site_Monitor",
+                            "virtual_server": "{{ f5cs.ipEndpoint_1 }}"
+                        },
+                        {
+                            "monitor": "monitors_Web_Site_Monitor",
+                            "virtual_server": "{{ f5cs.ipEndpoint_2 }}"
+                        }
+                    ],
+                    "rr_type": "A",
+                    "ttl": 30
+                }
+            },
+            "regions": {
+                "regions_EU": {
+                    "display_name": "Europe",
+                    "sectors": [
+                        {
+                            "code": "EU",
+                            "scale": "continent"
+                        }
+                    ]
+                },
+                "regions_Everywhere": {
+                    "display_name": "Everywhere",
+                    "sectors": [
+                        {
+                            "code": "NA",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "AN",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "AS",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "OC",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "EU",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "SA",
+                            "scale": "continent"
+                        },
+                        {
+                            "code": "AF",
+                            "scale": "continent"
+                        }
+                    ]
+                }
+            },
+            "virtual_servers": {
+                "{{ f5cs.ipEndpoint_1 }}": {
+                    "address": "{{ f5cs.address_ipEndpoint_1 }}",
+                    "display_name": "{{ f5cs.ipEndpoint_1 }}",
+                    "monitor": "monitors_Web_Site_Monitor",
+                    "port": 443,
+                    "virtual_server_type": "cloud"
+                },
+                "{{ f5cs.ipEndpoint_2 }}": {
+                    "address": "{{ public_ip }}",
+                    "display_name": "{{ f5cs.ipEndpoint_2 }}",
+                    "monitor": "monitors_Web_Site_Monitor",
+                    "port": 443,
+                    "virtual_server_type": "cloud"
+                }
+            },
+            "zone": "{{ f5cs.zone_name }}"
+        },
+        "nameservers": [
+            {
+                "ipv4": "107.162.158.150",
+                "ipv6": "2604:e180:1021::ffff:6ba2:9e96",
+                "name": "ns1.f5cloudservices.com"
+            },
+            {
+                "ipv4": "107.162.158.151",
+                "ipv6": "2604:e180:1021::ffff:6ba2:9e97",
+                "name": "ns2.f5cloudservices.com"
+            }
+        ]
+    },
+    "create_time": "2020-04-16T17:54:10.286984Z",
+    "update_time": "2020-04-16T17:54:10.286984Z",
+    "cancel_time": null,
+    "end_time": null
+}
+}
