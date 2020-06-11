@@ -48,6 +48,8 @@ do_unlicense:
 	cd ${ANSIBLE_FOLDER} && ansible-playbook do.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "onboard" ; 
 
 ### AS3 Targets ###
+
+# no logging #
 as3_http_auto:
 	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_auto.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=http" --skip-tags "undeploy" ;
 
@@ -57,24 +59,41 @@ as3_ssl_manual: as3_undeploy
 as3_waf_manual:
 	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_manual.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=waf" --skip-tags "undeploy" ;
 
+as3_undeploy:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_manual.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=http" --skip-tags "deploy" ;
+
+# with logging #
+as3_http_auto_log:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_auto_log.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=http" --skip-tags "undeploy" ;
+
+as3_ssl_manual_log: as3_undeploy
+	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_manual_log.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=ssl" --skip-tags "undeploy" ;
+
+as3_waf_manual_log:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_manual_log.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=waf" --skip-tags "undeploy" ;
+
+# GSLB #
 as3_gslb:
 	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_gslb.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "undeploy" ;
 
 as3_undeploy_gslb:
 	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_gslb.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "deploy" ;
 
-as3_undeploy:
-	cd ${ANSIBLE_FOLDER} && ansible-playbook as3_manual.yml ${ANSIBLE_EXTRA_ARGS} --extra-vars "scenario=http" --skip-tags "deploy" ;
-
 ### TS Targets ###
 ts_cloudwatch:
-	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "graphite_grafana,beacon" ;
+	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "graphite_grafana,statsd_grafana,elk,beacon" ;
 
 ts_graphite_grafana:
-	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,beacon" ;
+	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,statsd_grafana,elk,beacon" ;
+
+ts_statsd_grafana:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,graphite_grafana,elk,beacon" ;
+
+ts_elk:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,graphite_grafana,statsd_grafana,beacon" ;
 
 ts_beacon:
-	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,graphite_grafana" ;
+	cd ${ANSIBLE_FOLDER} && ansible-playbook ts.yml ${ANSIBLE_EXTRA_ARGS} --skip-tags "cloudwatch,graphite_grafana,statsd_grafana,elk" ;
 
 ##################
 # Helper Targets #
@@ -99,3 +118,6 @@ terraform_validate:
 
 terraform_update: 
 	cd ${TERRAFORM_FOLDER} && terraform get -update=true ;
+
+test:
+	cd ${ANSIBLE_FOLDER} && ansible-playbook show_inv.yml ${ANSIBLE_EXTRA_ARGS}
