@@ -22,12 +22,29 @@ bigiq:
 
 ## Automation Toolchain variables
 atc:
-    tenant: Team_A
+    tenant: 
     application: NginxWebServer
 
 equinix:
     device_address: 88.84.155.38
     device_virtual_server: 88.84.155.37
+    device_mgmt_address: 172.16.20.10
+    device_admin_password: "changeme"
+
+## F5 Cloud Services variables
+
+f5cs:
+    api_url: 'api.cloudservices.f5.com'
+    api_version: v1
+    username: "changeme"
+    password: "changeme"
+
+    zone_name: 'newapp.f5demo.eu'
+    service_instance_name: 'NEW APP'
+    ipEndpoint_1: 'equinix_dc_newapp_vs'
+    ipEndpoint_2: 'aws_eu_newapp_vs'
+    address_ipEndpoint_1: '88.84.155.37'
+
 
 ## Nginx Webserver variables
 webserver:
