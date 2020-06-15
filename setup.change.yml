@@ -22,7 +22,7 @@ bigiq:
 
 ## Automation Toolchain variables
 atc:
-    tenant: 
+    tenant: Team_A
     application: NginxWebServer
 
 equinix:
